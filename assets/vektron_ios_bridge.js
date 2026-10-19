@@ -12,7 +12,7 @@
   window.__VEKTRON_IOS_BRIDGE_INSTALLED__ = true;
 
   var FIREBASE_API_KEY = "AIzaSyD_xQiHtL52CDG-3Vcz0DImFJQ5Ll7J95Q";
-  var FIREBASE_PROJECT_ID = "vektron-studio-ec7f3";
+  var FIREBASE_PROJECT_ID = "vektron-studio-app";
   var FIRESTORE_BASE = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_PROJECT_ID + "/databases/(default)/documents";
   var VAULT_PASSPHRASE = "VK_STUDIO_CORE_VAULT_2026_9f4a8c21e7b3d605a1c8f924b7e0d36a";
   var ADMIN_EMAIL = "shadrick1212@gmail.com";
