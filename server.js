@@ -728,10 +728,27 @@ function startGatewayServer() {
 }
 
 async function publishTunnelToGitHub(url) {
-  const ghToken = process.env.GITHUB_TOKEN || '';
-  const repoFull = process.env.GITHUB_REPOSITORY || '';
+  let ghToken = process.env.GITHUB_TOKEN || '';
+  let repoFull = process.env.GITHUB_REPOSITORY || '';
+
+  if (!repoFull) {
+    try {
+      const remoteUrl = execSync('git config --get remote.origin.url', { cwd: __dirname }).toString().trim();
+      const m = remoteUrl.match(/github\.com[:/]([^/]+\/[^/.]+)(?:\.git)?$/i);
+      if (m && m[1]) repoFull = m[1];
+    } catch (_) {}
+  }
+
+  if (!ghToken) {
+    try {
+      const credOut = execSync('printf "protocol=https\\nhost=github.com\\n\\n" | git credential fill', { cwd: __dirname }).toString();
+      const pm = credOut.match(/^password=(.+)$/m);
+      if (pm && pm[1]) ghToken = pm[1].trim();
+    } catch (_) {}
+  }
+
   if (!ghToken || !repoFull) {
-    console.log('[VektronNode] No GITHUB_TOKEN/GITHUB_REPOSITORY in env; skipping repo publish');
+    console.log('[VektronNode] No GITHUB_TOKEN/GITHUB_REPOSITORY available; skipping repo publish');
     return;
   }
 
