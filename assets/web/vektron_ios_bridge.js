@@ -12,7 +12,7 @@
   window.__VEKTRON_IOS_BRIDGE_INSTALLED__ = true;
 
   var FIREBASE_API_KEY = "AIzaSyD_xQiHtL52CDG-3Vcz0DImFJQ5Ll7J95Q";
-  var FIREBASE_PROJECT_ID = "vektron-studio-ec7f3";
+  var FIREBASE_PROJECT_ID = "vektron-studio-app";
   var FIRESTORE_BASE = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_PROJECT_ID + "/databases/(default)/documents";
   var VAULT_PASSPHRASE = "VK_STUDIO_CORE_VAULT_2026_9f4a8c21e7b3d605a1c8f924b7e0d36a";
   var ADMIN_EMAIL = "shadrick1212@gmail.com";
@@ -26,6 +26,8 @@
   var ramActiveRefreshToken = "";
   var ramIosNodePool = [];
   var ramActiveTunnelUrl = "";
+  var ramPrefsCache = null;
+  var cachedHardwareId = "";
   var workspaceReadyInMemory = false;
   var bootSoundPlayed = false;
   var wakingNodeInProgress = false;
@@ -40,10 +42,12 @@
         var decodedJson = decodeURIComponent(escape(atob(encodedSess)));
         var parsedSess = JSON.parse(decodedJson);
         if (parsedSess && parsedSess.uid) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(parsedSess));
+          ramPrefsCache = parsedSess;
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(parsedSess)); } catch (_) {}
         }
         if (window.history && window.history.replaceState) {
-          window.history.replaceState(null, "", window.location.pathname + window.location.search);
+          var cleanPath = window.location.pathname === "/workspace" ? "/" : window.location.pathname;
+          window.history.replaceState(null, "", cleanPath + window.location.search);
         }
       }
     }
@@ -52,10 +56,13 @@
   function getPrefs() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : {};
-    } catch (e) {
-      return {};
-    }
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        ramPrefsCache = parsed;
+        return parsed;
+      }
+    } catch (e) {}
+    return ramPrefsCache ? Object.assign({}, ramPrefsCache) : {};
   }
 
   function savePrefs(patch) {
@@ -69,30 +76,96 @@
       // Never persist vaultCipher or raw refresh tokens
       delete cur.vaultCipher;
       delete cur.masterRefreshToken;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(cur));
+      ramPrefsCache = cur;
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cur)); } catch (_) {}
       return cur;
     } catch (e) {
-      return {};
+      return ramPrefsCache || {};
     }
   }
 
   function clearPrefs() {
+    ramPrefsCache = null;
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch (e) {}
     ramActiveRefreshToken = "";
   }
 
+  function fnv1aHex(str) {
+    var h1 = 0x811c9dc5;
+    var h2 = 0x811c9dc5;
+    for (var i = 0; i < str.length; i++) {
+      var c = str.charCodeAt(i);
+      h1 ^= c;
+      h1 = Math.imul(h1, 0x01000193);
+      h2 ^= (c ^ (i & 0xff));
+      h2 = Math.imul(h2, 0x01000193);
+    }
+    return (h1 >>> 0).toString(16).padStart(8, "0") + (h2 >>> 0).toString(16).padStart(8, "0");
+  }
+
+  function computeHardwareDeviceId() {
+    if (cachedHardwareId) return cachedHardwareId;
+    var parts = [];
+    try {
+      var sw = Math.min(window.screen.width || 0, window.screen.height || 0);
+      var sh = Math.max(window.screen.width || 0, window.screen.height || 0);
+      var dpr = Number(window.devicePixelRatio || 1).toFixed(2);
+      parts.push(sw + "x" + sh + "@" + dpr + ":" + (window.screen.colorDepth || 24));
+      parts.push(String(navigator.platform || ""));
+      parts.push(String(navigator.hardwareConcurrency || 0));
+      parts.push(String(navigator.maxTouchPoints || 0));
+      parts.push(String(Intl.DateTimeFormat().resolvedOptions().timeZone || ""));
+    } catch (_) {}
+    try {
+      var cv = document.createElement("canvas");
+      var gl = cv.getContext("webgl") || cv.getContext("experimental-webgl");
+      if (gl) {
+        var dbg = gl.getExtension("WEBGL_debug_renderer_info");
+        var vendor = dbg ? gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR);
+        var renderer = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+        parts.push(String(vendor || "") + "|" + String(renderer || ""));
+        parts.push(String(gl.getParameter(gl.MAX_TEXTURE_SIZE) || ""));
+      }
+    } catch (_) {}
+    try {
+      var c2 = document.createElement("canvas");
+      c2.width = 120;
+      c2.height = 30;
+      var ctx = c2.getContext("2d");
+      if (ctx) {
+        ctx.textBaseline = "top";
+        ctx.font = "14px Arial";
+        ctx.fillStyle = "#f60";
+        ctx.fillRect(10, 1, 62, 20);
+        ctx.fillStyle = "#069";
+        ctx.fillText("VektronHW#26", 2, 15);
+        parts.push(fnv1aHex(c2.toDataURL()));
+      }
+    } catch (_) {}
+    var hwHash = "web-hw-" + fnv1aHex(parts.join("||"));
+    cachedHardwareId = hwHash;
+    try { localStorage.setItem(DEVICE_KEY, hwHash); } catch (_) {}
+    return hwHash;
+  }
+
   function getHardwareDeviceId() {
     try {
+      var p = ramPrefsCache;
+      if (!p) {
+        var raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) p = JSON.parse(raw);
+      }
+      if (p && p.boundDeviceId && p.boundDeviceId.indexOf("ios-vk-") === 0) {
+        return p.boundDeviceId;
+      }
       var existing = localStorage.getItem(DEVICE_KEY);
-      if (existing && existing.length >= 8) return existing;
-      var rnd = "ios-vk-" + Math.random().toString(36).slice(2, 10) + "-" + Date.now().toString(36);
-      localStorage.setItem(DEVICE_KEY, rnd);
-      return rnd;
-    } catch (e) {
-      return "ios-vektron-device";
-    }
+      if (existing && existing.indexOf("ios-vk-") === 0) {
+        return existing;
+      }
+    } catch (_) {}
+    return computeHardwareDeviceId();
   }
 
   async function decryptVaultCipher(cipherB64) {
@@ -741,7 +814,7 @@
 
       // Open or reveal full-screen workspace iframe
       var sessionB64 = btoa(unescape(encodeURIComponent(JSON.stringify(getPrefs()))));
-      var targetWorkspaceUrl = nodeUrl.replace(/\/$/, "") + "/workspace?hostTheme=dark#vk_session=" + encodeURIComponent(sessionB64);
+      var targetWorkspaceUrl = nodeUrl.replace(/\/$/, "") + "/?hostTheme=dark#vk_session=" + encodeURIComponent(sessionB64);
 
       var frameWrap = document.getElementById("vk-ios-workspace-wrap");
       var frame = document.getElementById("vk-ios-workspace-frame");
