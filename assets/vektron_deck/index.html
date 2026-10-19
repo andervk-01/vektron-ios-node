@@ -1,0 +1,2868 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#04060a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Vektron Studio">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-512.png">
+<title>Vektron Studio</title>
+<script src="./vektron_ios_bridge.js"></script>
+<style>
+  :root {
+    --bg: #04060a;
+    --surface: rgba(12, 16, 25, 0.86);
+    --surface-solid: #0a0e17;
+    --surface-glass: rgba(11, 15, 24, 0.84);
+    --surface-topbar: rgba(10, 14, 22, 0.84);
+    --surface-2: rgba(20, 27, 42, 0.88);
+    --surface-input: rgba(6, 9, 15, 0.92);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-light: rgba(255, 255, 255, 0.15);
+    --specular: rgba(255, 255, 255, 0.11);
+    --primary: #2563eb;
+    --primary-light: #3b82f6;
+    --accent-cyan: #38bdf8;
+    --text: #f8fafc;
+    --muted: #8b9bb4;
+    --cta-bg: #ffffff;
+    --cta-text: #050811;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --font-display: "Google Sans", "Segoe UI Variable Display", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  body.light-mode {
+    --bg: #eef2f7;
+    --surface: rgba(255, 255, 255, 0.92);
+    --surface-solid: #ffffff;
+    --surface-glass: rgba(255, 255, 255, 0.90);
+    --surface-topbar: rgba(255, 255, 255, 0.88);
+    --surface-2: #e2e8f0;
+    --surface-input: #f8fafc;
+    --border: rgba(15, 23, 42, 0.10);
+    --border-light: rgba(15, 23, 42, 0.18);
+    --specular: rgba(255, 255, 255, 0.8);
+    --primary: #2563eb;
+    --primary-light: #3b82f6;
+    --accent-cyan: #0284c7;
+    --text: #0f172a;
+    --muted: #475569;
+    --cta-bg: #0f172a;
+    --cta-text: #ffffff;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(circle at 20% 15%, rgba(37, 99, 235, 0.14) 0%, transparent 50%),
+      radial-gradient(circle at 82% 85%, rgba(16, 185, 129, 0.08) 0%, transparent 45%);
+    color: var(--text);
+    font-family: var(--font-display);
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  /* WebGL2 3D Canvas Layer */
+  #webgl-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  /* Official Antigravity Radial Glow Behind 3D Stage in Lobby */
+  #ag-stage-glow {
+    position: fixed;
+    top: 22%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 260px;
+    height: 260px;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+  }
+
+  /* =========================================================
+     1. 3D CINEMATIC BOOT SPLASH LAYER
+     ========================================================= */
+  #splash-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding-bottom: 14vh;
+    pointer-events: none;
+  }
+
+  .splash-brand {
+    text-align: center;
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  .splash-title {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: 0.24em;
+    color: var(--text);
+  }
+
+  .splash-loader {
+    margin-top: 18px;
+    width: 140px;
+    height: 2px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .splash-loader-bar {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #2563eb, #60a5fa);
+  }
+
+  /* =========================================================
+     2. AUTHENTICATION SCREEN
+     ========================================================= */
+  #auth-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 15;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 24px 18px clamp(38px, 14vh, 185px);
+    opacity: 0;
+  }
+
+  .auth-card {
+    width: 100%;
+    max-width: 430px;
+    background: var(--surface);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--border-light);
+    box-shadow: inset 0 1px 0 var(--specular), 0 28px 64px rgba(0, 0, 0, 0.65);
+    border-radius: 22px;
+    padding: 22px 20px 20px;
+    pointer-events: auto;
+  }
+
+  .auth-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .auth-vk-badge {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: rgba(8, 11, 17, 0.95);
+    border: 1px solid var(--border-light);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .auth-title {
+    font-size: 17.5px;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    color: var(--text);
+  }
+
+  .auth-subtitle {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+
+  .auth-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: var(--surface-input);
+    padding: 3.5px;
+    border-radius: 11px;
+    border: 1px solid var(--border);
+    margin-bottom: 15px;
+  }
+
+  .auth-tab {
+    padding: 8.5px 0;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+  }
+
+  .auth-tab.active {
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border-light);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  }
+
+  .field-group {
+    margin-bottom: 11px;
+  }
+
+  .field-label {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+  }
+
+  .field-input {
+    width: 100%;
+    padding: 11.5px 13px;
+    border-radius: 11px;
+    background: var(--surface-input);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 13.5px;
+    outline: none;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    user-select: text;
+  }
+
+  .field-input:focus {
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18);
+  }
+
+  .auth-msg {
+    font-size: 12px;
+    line-height: 1.45;
+    margin: 8px 0 12px;
+    padding: 10px 12px;
+    border-radius: 9px;
+    display: none;
+  }
+
+  .auth-msg.error {
+    display: block;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #f87171;
+  }
+
+  .auth-msg.ok {
+    display: block;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #34d399;
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 12.5px;
+    border: 1px solid var(--cta-bg);
+    border-radius: 11px;
+    background: var(--cta-bg);
+    color: var(--cta-text);
+    font-size: 12.5px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: transform 0.12s ease, opacity 0.15s ease;
+  }
+
+  .btn-primary:active {
+    transform: scale(0.985);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.55;
+  }
+
+  .auth-footer {
+    margin-top: 13px;
+    text-align: center;
+  }
+
+  .auth-link {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  /* =========================================================
+     3. ULTRA-CLEAN LOBBY (PORTRAIT & LANDSCAPE)
+     ========================================================= */
+  #lobby-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 15;
+    display: none;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 36px clamp(16px, 4vw, 40px) clamp(18px, 6.5vh, 88px);
+    gap: 12px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* Sleek Top Status Bar */
+  .lobby-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: var(--surface-topbar);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--border-light);
+    box-shadow: inset 0 1px 0 var(--specular), 0 12px 32px rgba(0, 0, 0, 0.42);
+    border-radius: 16px;
+    padding: 9px 12px;
+    pointer-events: auto;
+    flex-shrink: 0;
+  }
+
+  .brand-pill {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .brand-badge {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: linear-gradient(145deg, #0d1320 0%, #060911 100%);
+    border: 1px solid var(--border-light);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 12px rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .brand-meta {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .brand-name-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+  }
+
+  .brand-name {
+    font-size: 11.5px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: linear-gradient(90deg, #ffffff 0%, #93c5fd 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  body.light-mode .brand-name {
+    background: linear-gradient(90deg, #0f172a 0%, #2563eb 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .brand-live-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+    flex-shrink: 0;
+  }
+
+  .brand-email {
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--muted);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: 1px;
+  }
+
+  .top-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  /* Luxury Sculpted Membership Pill Badge */
+  .plan-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 10px;
+    border-radius: 99px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.22) 0%, rgba(16, 185, 129, 0.18) 100%);
+    color: #f8fafc;
+    border: 1px solid rgba(56, 189, 248, 0.42);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 4px 16px rgba(16, 185, 129, 0.15);
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: transform 0.15s ease, box-shadow 0.2s ease;
+  }
+
+  @media (max-width: 440px) {
+    .lobby-topbar {
+      padding: 8px 10px;
+      gap: 6px;
+    }
+    .brand-pill {
+      gap: 7px;
+    }
+    .brand-badge {
+      width: 29px;
+      height: 29px;
+    }
+    .brand-name {
+      font-size: 10.5px;
+      letter-spacing: 0.05em;
+    }
+    .brand-email {
+      font-size: 10px;
+    }
+    .plan-badge {
+      padding: 5px 8px;
+      font-size: 9.5px;
+      letter-spacing: 0.04em;
+      gap: 4px;
+    }
+  }
+
+  .plan-badge:active {
+    transform: scale(0.95);
+  }
+
+  .plan-badge-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 13px;
+    height: 13px;
+    color: #34d399;
+    flex-shrink: 0;
+    filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.55));
+  }
+
+  .plan-badge-label {
+    background: linear-gradient(90deg, #ffffff 0%, #6ee7b7 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+
+  body.light-mode .plan-badge {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    border-color: #334155;
+  }
+
+  .btn-settings-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--surface-input);
+    border: 1px solid var(--border-light);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+
+  .btn-settings-icon:active {
+    transform: scale(0.93);
+  }
+
+  /* Main Layout Container */
+  .lobby-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 0;
+    pointer-events: none;
+  }
+
+  /* Pure 3D Emblem Stage (Zero Text Clutter) */
+  .stage-3d-spacer {
+    flex: 1;
+    width: 100%;
+    min-height: 130px;
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    pointer-events: auto;
+    touch-action: none;
+  }
+
+  .stage-pedestal {
+    width: 140px;
+    height: 18px;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.28) 0%, rgba(16, 185, 129, 0.09) 50%, transparent 76%);
+    transform: rotateX(72deg);
+    pointer-events: none;
+    margin-bottom: 10px;
+  }
+
+  /* Main Console Deck Card */
+  .lobby-deck {
+    background: var(--surface-glass);
+    backdrop-filter: blur(26px);
+    -webkit-backdrop-filter: blur(26px);
+    border: 1px solid var(--border-light);
+    box-shadow: inset 0 1px 0 var(--specular), 0 24px 60px rgba(0, 0, 0, 0.65);
+    border-radius: 22px;
+    padding: 16px 16px 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    pointer-events: auto;
+  }
+
+  .app-store-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .app-store-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .app-icon-box {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(145deg, #0d121d 0%, #060911 100%);
+    border: 1px solid var(--border-light);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 6px 16px rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .app-title {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1.15;
+  }
+
+  body.light-mode .app-title {
+    background: none;
+    -webkit-text-fill-color: var(--text);
+    color: var(--text);
+  }
+
+  /* Pure Poster Gallery (Solo Imagen — Sin Texto Externo) */
+  .gallery-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .gallery-scroll {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    border-radius: 14px;
+  }
+  .gallery-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .gallery-card {
+    position: relative;
+    height: clamp(165px, 24vh, 260px);
+    aspect-ratio: 16 / 10;
+    flex: 0 0 auto;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+    background: #050811;
+    scroll-snap-align: start;
+    cursor: pointer;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+    transition: transform 0.18s ease, border-color 0.18s ease;
+  }
+
+  .gallery-card:active {
+    transform: scale(0.985);
+  }
+
+  .gallery-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  .gallery-dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .gallery-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.18);
+    transition: all 0.22s ease;
+    cursor: pointer;
+  }
+
+  .gallery-dot.active {
+    width: 20px;
+    background: #38bdf8;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.55);
+  }
+
+  /* Sleek Quota Bar */
+  .telemetry-box {
+    background: var(--surface-input);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    padding: 9px 13px;
+  }
+
+  .telemetry-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .telemetry-label-group {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .telemetry-label {
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: var(--text);
+    text-transform: uppercase;
+  }
+
+  .telemetry-sub {
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--muted);
+  }
+
+  .telemetry-pct {
+    color: #38bdf8;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    font-weight: 800;
+  }
+
+  .telemetry-bar-bg {
+    width: 100%;
+    height: 5px;
+    background: var(--surface-2);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+
+  .telemetry-bar-fill {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #2563eb, #38bdf8, #10b981);
+    border-radius: 99px;
+    transition: width 0.5s ease;
+  }
+
+  /* Executive Launch Button */
+  .btn-launch {
+    width: 100%;
+    padding: 14px 18px;
+    border-radius: 13px;
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%);
+    color: #050811;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 0 10px 28px rgba(255, 255, 255, 0.14), inset 0 1px 0 #ffffff;
+    transition: transform 0.12s ease, opacity 0.2s ease;
+  }
+
+  body.light-mode .btn-launch {
+    background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+    border-color: #0f172a;
+    color: #ffffff;
+  }
+
+  .btn-launch:active {
+    transform: scale(0.985);
+  }
+
+  .btn-launch.disabled {
+    background: var(--surface-2);
+    border-color: var(--border);
+    color: var(--muted);
+    box-shadow: none;
+  }
+
+  .btn-launch.unlock-cta {
+    background: linear-gradient(135deg, #2563eb 0%, #0ea5e9 55%, #10b981 100%);
+    border: 1px solid rgba(125, 211, 252, 0.72);
+    color: #ffffff;
+    box-shadow: 0 10px 26px rgba(14, 165, 233, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
+
+  body.light-mode .btn-launch.unlock-cta {
+    background: linear-gradient(135deg, #2563eb 0%, #0284c7 60%, #059669 100%);
+    border-color: #0284c7;
+    color: #ffffff;
+  }
+
+  /* =========================================================
+     4. SETTINGS MODAL (MEMBRESÍA ULTRA, APARIENCIA, REPORTE, CUENTA)
+     ========================================================= */
+  #settings-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    background: rgba(4, 6, 11, 0.84);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    pointer-events: auto;
+  }
+
+  .settings-sheet {
+    width: 100%;
+    max-width: 520px;
+    max-height: 88vh;
+    background: var(--surface-solid);
+    border: 1px solid var(--border-light);
+    border-radius: 22px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.82), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .settings-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(59, 130, 246, 0.06) 0%, transparent 100%);
+  }
+
+  .settings-head-left {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+  }
+
+  .settings-head-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--surface-input);
+    border: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .settings-title {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    line-height: 1.2;
+  }
+
+  .settings-subtitle {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .btn-close-modal {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: var(--surface-input);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .btn-close-modal:active {
+    transform: scale(0.94);
+  }
+
+  .settings-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    background: var(--surface-input);
+    padding: 7px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stab-btn {
+    padding: 8px 6px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    border-radius: 10px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: all 0.16s ease;
+  }
+
+  .stab-btn svg {
+    width: 13px;
+    height: 13px;
+    opacity: 0.75;
+    flex-shrink: 0;
+  }
+
+  .stab-btn.active {
+    background: var(--surface-2);
+    color: var(--text);
+    border-color: rgba(59, 130, 246, 0.45);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  }
+
+  .stab-btn.active svg {
+    opacity: 1;
+    color: #38bdf8;
+  }
+
+  .settings-body {
+    padding: 18px 20px 20px;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .stab-pane {
+    display: none;
+  }
+
+  .stab-pane.active {
+    display: block;
+  }
+
+  /* Plans Comparison Cards */
+  .plans-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 15px;
+  }
+
+  .plan-card {
+    background: var(--surface-input);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 13px 15px;
+    position: relative;
+    transition: border-color 0.2s ease;
+  }
+
+  .plan-card.highlight {
+    border-color: rgba(59, 130, 246, 0.55);
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.11) 0%, rgba(14, 18, 28, 0.4) 100%);
+  }
+
+  .plan-card.current-plan {
+    border-color: #10b981;
+    box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.25);
+  }
+
+  .plan-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .plan-card-name {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.01em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .plan-card-tag {
+    font-size: 10px;
+    font-weight: 800;
+    padding: 3.5px 8.5px;
+    border-radius: 99px;
+    background: rgba(56, 189, 248, 0.12);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.28);
+    letter-spacing: 0.03em;
+  }
+
+  .plan-card.highlight .plan-card-tag {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+    border-color: rgba(59, 130, 246, 0.45);
+  }
+
+  .plan-benefits {
+    list-style: none;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+
+  .plan-benefits li {
+    position: relative;
+    padding-left: 18px;
+    margin-top: 3px;
+  }
+
+  .plan-benefits li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: #38bdf8;
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  .btn-whatsapp {
+    width: 100%;
+    padding: 13.5px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(16, 185, 129, 0.5);
+    background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+    color: #02130c;
+    font-size: 12.5px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    text-transform: uppercase;
+    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.22);
+  }
+
+  .btn-whatsapp:active {
+    transform: scale(0.985);
+  }
+
+  /* Preferences Rows */
+  .pref-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface-input);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+  }
+
+  .pref-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .pref-icon-box {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-light);
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .pref-info-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .pref-info-sub {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .toggle-switch {
+    width: 46px;
+    height: 26px;
+    border-radius: 99px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-light);
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  .toggle-switch.on {
+    background: var(--primary);
+    border-color: var(--primary-light);
+  }
+
+  .toggle-knob {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ffffff;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s ease;
+  }
+
+  .toggle-switch.on .toggle-knob {
+    transform: translateX(20px);
+  }
+
+  /* Support / Bug Report Form */
+  .report-chips {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7px;
+    margin-bottom: 12px;
+  }
+
+  .report-chip {
+    padding: 9px 8px;
+    border-radius: 10px;
+    background: var(--surface-input);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11.5px;
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .report-chip.active {
+    background: rgba(37, 99, 235, 0.15);
+    border-color: var(--primary-light);
+    color: var(--text);
+  }
+
+  .report-textarea {
+    width: 100%;
+    height: 100px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--surface-input);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    resize: none;
+    outline: none;
+    margin-bottom: 12px;
+    user-select: text;
+  }
+
+  .report-textarea:focus {
+    border-color: var(--primary-light);
+  }
+
+  /* Account Profile & Privacy Cards */
+  .account-profile-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, var(--surface-input) 100%);
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    padding: 13px 15px;
+    margin-bottom: 12px;
+  }
+
+  .account-profile-left {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-width: 0;
+  }
+
+  .account-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-light);
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .account-email-val {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .account-role-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+
+  .policy-card {
+    background: var(--surface-input);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 13px 15px;
+    margin-bottom: 14px;
+  }
+
+  .policy-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .policy-item:last-child {
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-bottom: none;
+  }
+
+  .policy-dot {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-light);
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .policy-head {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .policy-desc {
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.42;
+  }
+
+  .btn-danger-logout {
+    width: 100%;
+    padding: 13px;
+    border-radius: 12px;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #f87171;
+    font-size: 12.5px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+
+  .btn-danger-logout:active {
+    transform: scale(0.985);
+  }
+
+  /* Lightbox Modal */
+  #preview-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: rgba(4, 6, 11, 0.94);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    pointer-events: auto;
+  }
+
+  #preview-modal img {
+    max-width: 100%;
+    max-height: 84vh;
+    border-radius: 16px;
+    border: 1px solid var(--border-light);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85);
+  }
+
+  .preview-modal-caption {
+    display: none;
+  }
+
+  /* =========================================================
+     5. RESPONSIVE LANDSCAPE ("MODO ECHADO") — 2-COLUMN CONSOLE
+     ========================================================= */
+  @media (orientation: landscape) {
+    #auth-screen {
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 20px 38px;
+    }
+
+    .auth-card {
+      width: 52%;
+      max-width: 420px;
+      max-height: calc(100vh - 36px);
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+    .auth-card::-webkit-scrollbar {
+      display: none;
+    }
+
+    #lobby-screen {
+      padding: 20px 24px 18px;
+      gap: 14px;
+    }
+
+    .lobby-main {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .stage-3d-spacer {
+      flex: 1;
+      height: 100%;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .stage-pedestal {
+      margin-bottom: 12%;
+    }
+
+    .lobby-deck {
+      width: 57%;
+      max-width: 600px;
+      max-height: 100%;
+      padding: 18px 18px 16px;
+      gap: 13px;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+    .lobby-deck::-webkit-scrollbar {
+      display: none;
+    }
+
+    .gallery-card {
+      height: clamp(145px, 36vh, 275px);
+      aspect-ratio: 16 / 10;
+      flex: 0 0 auto;
+    }
+
+    .settings-sheet {
+      max-width: 580px;
+      max-height: 86vh;
+    }
+
+    .plans-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+  }
+
+  /* Compact adaptation for Android phones in Landscape */
+  @media (orientation: landscape) and (max-height: 520px) {
+    #auth-screen {
+      padding: 10px 24px;
+    }
+
+    .auth-card {
+      padding: 14px 16px;
+      max-width: 390px;
+      max-height: calc(100vh - 20px);
+    }
+
+    .auth-header {
+      margin-bottom: 10px;
+    }
+
+    .auth-tabs {
+      margin-bottom: 10px;
+      padding: 3px;
+    }
+
+    .auth-tab {
+      padding: 6px 0;
+      font-size: 10.5px;
+    }
+
+    .field-group {
+      margin-bottom: 7px;
+    }
+
+    .field-label {
+      margin-bottom: 3px;
+      font-size: 9.5px;
+    }
+
+    .field-input {
+      padding: 8px 11px;
+      font-size: 13px;
+    }
+
+    .btn-primary {
+      padding: 10px;
+      font-size: 12px;
+    }
+
+    .auth-footer {
+      margin-top: 8px;
+    }
+
+    #lobby-screen {
+      padding: 10px 16px 10px;
+      gap: 8px;
+    }
+
+    .lobby-topbar {
+      padding: 6px 11px;
+      border-radius: 12px;
+    }
+
+    .lobby-deck {
+      width: 56%;
+      padding: 11px 13px;
+      border-radius: 16px;
+      gap: 8px;
+    }
+
+    .app-icon-box {
+      width: 34px;
+      height: 34px;
+      padding: 6px;
+      border-radius: 9px;
+    }
+
+    .app-title {
+      font-size: 16.5px;
+    }
+
+    .gallery-card {
+      height: 122px;
+      aspect-ratio: 16 / 10;
+      flex: 0 0 auto;
+    }
+
+    .telemetry-box {
+      padding: 6px 10px;
+    }
+
+    .btn-launch {
+      padding: 10px;
+      font-size: 11.5px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- Official Google Antigravity Radial Glow -->
+<div id="ag-stage-glow">
+  <svg width="100%" height="100%" viewBox="0 0 255 266" fill="none" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">
+    <defs>
+      <radialGradient id="radialGlowGrad" cx="127.5" cy="133" r="120" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="white"/>
+        <stop offset="35%" stop-color="#888888"/>
+        <stop offset="70%" stop-color="#222222"/>
+        <stop offset="100%" stop-color="black"/>
+      </radialGradient>
+      <mask id="glowRadialMask" maskUnits="userSpaceOnUse">
+        <rect x="0" y="0" width="255" height="266" fill="url(#radialGlowGrad)"/>
+      </mask>
+      <filter id="gf1" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="18"/></filter>
+    </defs>
+    <g mask="url(#glowRadialMask)" opacity="0.62">
+      <ellipse cx="96.5" cy="101.3" rx="26.6" ry="15.5" transform="rotate(112.5 96.5 101.3)" fill="#FFEE48" filter="url(#gf1)"/>
+      <ellipse cx="174.2" cy="94.8" rx="49.7" ry="30.9" transform="rotate(34.0 174.2 94.8)" fill="#FC413D" filter="url(#gf1)"/>
+      <path d="M72.96 236.44C52.28 228.32 87.62 161.53 96.41 139.15C105.19 116.77 129.08 105.20 149.76 113.32C170.43 121.44 194.94 166.15 186.15 188.53C177.37 210.91 93.64 244.55 72.96 236.44Z" fill="#3186FF" filter="url(#gf1)"/>
+      <ellipse cx="80.2" cy="114.9" rx="34.6" ry="44.9" transform="rotate(74.1 80.2 114.9)" fill="#00B95C" filter="url(#gf1)"/>
+    </g>
+  </svg>
+</div>
+
+<canvas id="webgl-canvas"></canvas>
+
+<!-- =========================================================
+     1. 3D CINEMATIC SPLASH OVERLAY
+     ========================================================= -->
+<div id="splash-screen">
+  <div class="splash-brand" id="splash-brand">
+    <div class="splash-title">VEKTRON STUDIO</div>
+    <div class="splash-loader">
+      <div class="splash-loader-bar" id="splash-bar"></div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================
+     2. AUTH OVERLAY
+     ========================================================= -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="auth-vk-badge">
+        <svg width="20" height="20" viewBox="0 0 64 64" fill="none">
+          <path d="M12 12 L23.5 12 L30.5 26.5 L24.5 38.5 Z" fill="#ffffff"/>
+          <path d="M40.5 12 L52 12 L32 52 L26 40 Z" fill="#3b82f6"/>
+        </svg>
+      </div>
+      <div>
+        <div class="auth-title">Vektron Studio</div>
+        <div class="auth-subtitle" id="auth-subtitle">Accede a tu cuenta</div>
+      </div>
+    </div>
+
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="tab-login" onclick="setAuthMode(false)">INICIAR SESIÓN</div>
+      <div class="auth-tab" id="tab-register" onclick="setAuthMode(true)">CREAR CUENTA</div>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">Correo electrónico</label>
+      <input type="email" id="auth-email" class="field-input" placeholder="correo@ejemplo.com" autocomplete="email">
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">Contraseña</label>
+      <input type="password" id="auth-pass" class="field-input" placeholder="Mínimo 6 caracteres" autocomplete="current-password">
+    </div>
+
+    <div class="field-group" id="group-pass-confirm" style="display: none;">
+      <label class="field-label">Confirmar contraseña</label>
+      <input type="password" id="auth-pass-confirm" class="field-input" placeholder="Repite tu contraseña" autocomplete="new-password">
+    </div>
+
+    <div id="auth-msg" class="auth-msg"></div>
+
+    <button class="btn-primary" id="btn-auth-submit" onclick="submitAuthForm()">CONTINUAR</button>
+
+    <div class="auth-footer" id="auth-footer">
+      <span class="auth-link" onclick="triggerResetPassword()">¿Olvidaste tu contraseña?</span>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================
+     3. ULTRA-CLEAN LOBBY
+     ========================================================= -->
+<div id="lobby-screen">
+  <!-- Top Bar -->
+  <div class="lobby-topbar">
+    <div class="brand-pill">
+      <div class="brand-badge">
+        <svg width="18" height="18" viewBox="0 0 64 64" fill="none">
+          <path d="M12 12 L23.5 12 L30.5 26.5 L24.5 38.5 Z" fill="#ffffff"/>
+          <path d="M40.5 12 L52 12 L32 52 L26 40 Z" fill="#3b82f6"/>
+        </svg>
+      </div>
+      <div class="brand-meta">
+        <div class="brand-name-row">
+          <span class="brand-name">VEKTRON STUDIO</span>
+          <span class="brand-live-dot"></span>
+        </div>
+        <div class="brand-email" id="user-email">Cargando...</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <div class="plan-badge" id="plan-badge" onclick="openSettingsModal('plans')">
+        <span class="plan-badge-icon">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="6 3 18 3 22 9 12 22 2 9"/>
+            <path d="M2 9h20"/>
+            <path d="M12 22L8 9l3-6"/>
+            <path d="M12 22l4-13-3-6"/>
+          </svg>
+        </span>
+        <span class="plan-badge-label" id="plan-badge-label">ACTIVO</span>
+      </div>
+      <button class="btn-settings-icon" onclick="openSettingsModal('plans')" aria-label="Ajustes">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="lobby-main">
+    <!-- Pure 3D Touch Stage -->
+    <div class="stage-3d-spacer" id="stage-touch-zone">
+      <div class="stage-pedestal"></div>
+    </div>
+
+    <!-- Main Console Deck -->
+    <div class="lobby-deck">
+      <div class="app-store-header">
+        <div class="app-store-brand">
+          <div class="app-icon-box">
+            <svg width="100%" height="100%" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g clip-path="url(#ag_clip)">
+                <path d="M85.9734 89.3438C91.2234 93.2812 99.0984 90.6562 91.8796 83.4375C70.2234 62.4375 74.8171 4.6875 47.9109 4.6875C21.0046 4.6875 25.5984 62.4375 3.94213 83.4375C-3.93287 91.3125 4.59838 93.2812 9.84838 89.3438C30.1921 75.5625 28.8796 51.2812 47.9109 51.2812C66.9421 51.2812 65.6296 75.5625 85.9734 89.3438Z" fill="#3186FF"/>
+                <mask id="ag_mask" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="4" width="95" height="88">
+                  <path d="M85.9734 89.3438C91.2234 93.2812 99.0984 90.6562 91.8796 83.4375C70.2234 62.4375 74.8171 4.6875 47.9109 4.6875C21.0046 4.6875 25.5984 62.4375 3.94213 83.4375C-3.93287 91.3125 4.59838 93.2812 9.84838 89.3438C30.1921 75.5625 28.8796 51.2812 47.9109 51.2812C66.9421 51.2812 65.6296 75.5625 85.9734 89.3438Z" fill="black"/>
+                </mask>
+                <g mask="url(#ag_mask)">
+                  <g filter="url(#ag_f0)"><ellipse cx="25.6357" cy="30.161" rx="25.6357" ry="30.161" transform="matrix(-0.112784 0.99362 -0.99362 -0.112781 59.5896 -33.5392)" fill="#FFE432"/></g>
+                  <g filter="url(#ag_f1)"><ellipse cx="93.6143" cy="23.4505" rx="33.1883" ry="33.9179" transform="rotate(76.9243 93.6143 23.4505)" fill="#FC413D"/></g>
+                  <g filter="url(#ag_f2)"><ellipse cx="-4.78051" cy="30.8098" rx="34.686" ry="44.9344" transform="rotate(74.1257 -4.78051 30.8098)" fill="#00B95C"/></g>
+                  <g filter="url(#ag_f3)"><ellipse cx="-4.78051" cy="30.8098" rx="34.686" ry="44.9344" transform="rotate(74.1257 -4.78051 30.8098)" fill="#00B95C"/></g>
+                  <g filter="url(#ag_f4)"><ellipse cx="-2.31406" cy="32.1899" rx="33.9975" ry="37.4282" transform="rotate(45.6065 -2.31406 32.1899)" fill="#00B95C"/></g>
+                  <g filter="url(#ag_f5)"><ellipse cx="70.2862" cy="101.861" rx="32.6449" ry="31.4359" transform="rotate(76.9243 70.2862 101.861)" fill="#3186FF"/></g>
+                  <g filter="url(#ag_f6)"><ellipse cx="37.7619" cy="39.8298" rx="37.7619" ry="39.8298" transform="matrix(-0.409539 0.912293 -0.912294 -0.409537 98.9683 -33.1266)" fill="#FBBC04"/></g>
+                  <g filter="url(#ag_f7)"><path d="M-12.0493 152.344C-32.7264 144.227 2.61016 77.4428 11.3972 55.0598C20.1841 32.6769 44.0695 21.1122 64.7466 29.2295C85.4236 37.3467 109.932 82.0552 101.145 104.438C92.3577 126.8 8.6 160.461 -12.0493 152.344Z" fill="#3186FF"/></g>
+                  <g filter="url(#ag_f8)"><path d="M113.238 69.2209C107.702 75.6818 93.256 72.3872 80.9716 61.8621C68.6872 51.337 63.2163 37.567 68.752 31.1061C74.2876 24.6451 88.7336 27.9398 101.018 38.4649C113.302 48.99 118.773 62.7599 113.238 69.2209Z" fill="#749BFF"/></g>
+                  <g filter="url(#ag_f9)"><ellipse cx="89.2491" cy="10.7078" rx="49.7713" ry="30.9393" transform="rotate(34.0763 89.2491 10.7078)" fill="#FC413D"/></g>
+                  <g filter="url(#ag_f10)"><ellipse cx="11.4944" cy="17.2241" rx="26.6705" ry="15.5102" transform="rotate(112.516 11.4944 17.2241)" fill="#FFEE48"/></g>
+                </g>
+              </g>
+              <defs>
+                <clipPath id="ag_clip"><rect width="96" height="96" fill="white"/></clipPath>
+                <filter id="ag_f0" x="-13" y="-46" width="78" height="69" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="4.37"/></filter>
+                <filter id="ag_f1" x="17" y="-53" width="153" height="152" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="21.15"/></filter>
+                <filter id="ag_f2" x="-86" y="-41" width="161" height="144" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="17.98"/></filter>
+                <filter id="ag_f3" x="-86" y="-41" width="161" height="144" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="17.98"/></filter>
+                <filter id="ag_f4" x="-75" y="-40" width="144" height="144" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="17.98"/></filter>
+                <filter id="ag_f5" x="4" y="35" width="132" height="134" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="17.09"/></filter>
+                <filter id="ag_f6" x="-24" y="-85" width="141" height="139" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="15.49"/></filter>
+                <filter id="ag_f7" x="-47" y="-2" width="177" height="183" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="13.83"/></filter>
+                <filter id="ag_f8" x="41" y="3" width="99" height="95" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="12.38"/></filter>
+                <filter id="ag_f9" x="23" y="-49" width="132" height="118" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="10.45"/></filter>
+                <filter id="ag_f10" x="-32" y="-34" width="87" height="103" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="12.94"/></filter>
+              </defs>
+            </svg>
+          </div>
+          <div class="app-title">Google Antigravity</div>
+        </div>
+      </div>
+
+      <!-- Pure Promotional Poster Gallery (Solo Imagen) -->
+      <div class="gallery-wrap">
+        <div class="gallery-scroll" id="gallery-scroll">
+          <div class="gallery-card" onclick="openPreview('ag_preview_1.png', '')">
+            <img src="ag_preview_1.png" alt="Desarrollo con IA">
+          </div>
+          <div class="gallery-card" onclick="openPreview('ag_preview_2.png', '')">
+            <img src="ag_preview_2.png" alt="Sistema Multi-Agente">
+          </div>
+          <div class="gallery-card" onclick="openPreview('ag_preview_3.png', '')">
+            <img src="ag_preview_3.png" alt="Vista Web en Tiempo Real">
+          </div>
+          <div class="gallery-card" onclick="openPreview('ag_preview_4.png', '')">
+            <img src="ag_preview_4.png" alt="Workstation en Android">
+          </div>
+        </div>
+        <div class="gallery-dots" id="gallery-dots">
+          <span class="gallery-dot active" onclick="scrollToPoster(0)"></span>
+          <span class="gallery-dot" onclick="scrollToPoster(1)"></span>
+          <span class="gallery-dot" onclick="scrollToPoster(2)"></span>
+          <span class="gallery-dot" onclick="scrollToPoster(3)"></span>
+        </div>
+      </div>
+
+      <!-- Sleek Quota Bar -->
+      <div class="telemetry-box">
+        <div class="telemetry-top">
+          <div class="telemetry-label-group">
+            <span class="telemetry-label">CUOTA ULTRA</span>
+            <span class="telemetry-sub" id="quota-sub">Sincronizando...</span>
+          </div>
+          <span class="telemetry-pct" id="quota-pct">100%</span>
+        </div>
+        <div class="telemetry-bar-bg">
+          <div class="telemetry-bar-fill" id="quota-bar"></div>
+        </div>
+      </div>
+
+      <!-- Primary Launch CTA -->
+      <button class="btn-launch" id="btn-launch" onclick="handleLaunchClick()">INICIAR ANTIGRAVITY</button>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================
+     4. VEKTRON STUDIO SETTINGS MODAL
+     ========================================================= -->
+<div id="settings-modal" onclick="if(event.target===this) closeSettingsModal()">
+  <div class="settings-sheet">
+    <div class="settings-top">
+      <div class="settings-head-left">
+        <div class="settings-head-icon">
+          <svg width="18" height="18" viewBox="0 0 64 64" fill="none">
+            <path d="M12 12 L23.5 12 L30.5 26.5 L24.5 38.5 Z" fill="#ffffff"/>
+            <path d="M40.5 12 L52 12 L32 52 L26 40 Z" fill="#3b82f6"/>
+          </svg>
+        </div>
+        <div>
+          <div class="settings-title">Ajustes · Vektron Studio</div>
+          <div class="settings-subtitle">Membresía, apariencia y soporte</div>
+        </div>
+      </div>
+      <button class="btn-close-modal" onclick="closeSettingsModal()">✕</button>
+    </div>
+
+    <div class="settings-tabs">
+      <div class="stab-btn active" id="stab-btn-plans" onclick="switchSettingsTab('plans')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 18 3 22 9 12 22 2 9"/><path d="M2 9h20"/><path d="M12 22L8 9l3-6"/><path d="M12 22l4-13-3-6"/></svg>
+        <span>Membresía</span>
+      </div>
+      <div class="stab-btn" id="stab-btn-prefs" onclick="switchSettingsTab('prefs')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2"/></svg>
+        <span>Apariencia</span>
+      </div>
+      <div class="stab-btn" id="stab-btn-report" onclick="switchSettingsTab('report')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Reportar</span>
+      </div>
+      <div class="stab-btn" id="stab-btn-account" onclick="switchSettingsTab('account')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>Cuenta</span>
+      </div>
+    </div>
+
+    <div class="settings-body">
+      <!-- TAB 1: MEMBRESÍA Y PLANES ULTRA (SIN PRECIOS) -->
+      <div class="stab-pane active" id="stab-pane-plans">
+        <div class="plans-grid">
+          <div class="plan-card" id="pcard-pro" onclick="openWhatsAppGroup()" style="cursor:pointer;">
+            <div class="plan-card-head">
+              <span class="plan-card-name">Plan Ultra x1</span>
+              <span class="plan-card-tag" id="ptag-pro">CAPACIDAD 1X</span>
+            </div>
+            <ul class="plan-benefits">
+              <li>Acceso completo a Google Antigravity</li>
+              <li>Cuota Ultra base renovable cada 5 horas</li>
+              <li>Licencia vinculada a 1 dispositivo</li>
+            </ul>
+          </div>
+
+          <div class="plan-card" id="pcard-pro2x" onclick="openWhatsAppGroup()" style="cursor:pointer;">
+            <div class="plan-card-head">
+              <span class="plan-card-name">Plan Ultra x2</span>
+              <span class="plan-card-tag" id="ptag-pro2x">DOBLE CUOTA · 2X</span>
+            </div>
+            <ul class="plan-benefits">
+              <li>Doble capacidad Ultra cada 5 horas</li>
+              <li>Ideal para sesiones largas sin pausas</li>
+              <li>Ejecución fluida de agentes en paralelo</li>
+            </ul>
+          </div>
+
+          <div class="plan-card" id="pcard-pro3x" onclick="openWhatsAppGroup()" style="cursor:pointer;">
+            <div class="plan-card-head">
+              <span class="plan-card-name">Plan Ultra x3</span>
+              <span class="plan-card-tag" id="ptag-pro3x">MÁXIMO · 3X</span>
+            </div>
+            <ul class="plan-benefits">
+              <li>Triple capacidad Ultra cada 5 horas</li>
+              <li>Diseñado para carga intensiva continua</li>
+              <li>Atención y soporte prioritario directo</li>
+            </ul>
+          </div>
+        </div>
+
+        <button class="btn-whatsapp" onclick="openWhatsAppGroup()">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+          </svg>
+          <span>Solicitar Prueba o Activar Plan en WhatsApp</span>
+        </button>
+      </div>
+
+      <!-- TAB 2: APARIENCIA Y SONIDO -->
+      <div class="stab-pane" id="stab-pane-prefs">
+        <div class="pref-row" onclick="toggleNightMode()">
+          <div class="pref-left">
+            <div class="pref-icon-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+              </svg>
+            </div>
+            <div>
+              <div class="pref-info-title">Modo Nocturno</div>
+              <div class="pref-info-sub">Interfaz oscura en Login y Lobby</div>
+            </div>
+          </div>
+          <div class="toggle-switch on" id="toggle-night">
+            <div class="toggle-knob"></div>
+          </div>
+        </div>
+
+        <div class="pref-row" onclick="toggleSoundPref()">
+          <div class="pref-left">
+            <div class="pref-icon-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+              </svg>
+            </div>
+            <div>
+              <div class="pref-info-title">Sonidos de la Aplicación</div>
+              <div class="pref-info-sub">Efectos de sonido al iniciar y navegar</div>
+            </div>
+          </div>
+          <div class="toggle-switch on" id="toggle-sound">
+            <div class="toggle-knob"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: REPORTAR ERROR / SOPORTE AL BUZÓN ADMINISTRATIVO -->
+      <div class="stab-pane" id="stab-pane-report">
+        <label class="field-label">Tipo de reporte</label>
+        <div class="report-chips">
+          <div class="report-chip active" data-cat="Error técnico" onclick="selectReportCategory(this)">Error técnico</div>
+          <div class="report-chip" data-cat="Cuota o Membresía" onclick="selectReportCategory(this)">Membresía</div>
+          <div class="report-chip" data-cat="Sugerencia" onclick="selectReportCategory(this)">Sugerencia</div>
+        </div>
+        <input type="hidden" id="report-category" value="Error técnico">
+
+        <label class="field-label">Detalle del mensaje</label>
+        <textarea id="report-message" class="report-textarea" placeholder="Describe el inconveniente o consulta para enviarlo directamente al buzón del administrador..."></textarea>
+
+        <div id="report-msg-box" class="auth-msg"></div>
+
+        <button class="btn-primary" id="btn-send-report" onclick="sendUserReport()">ENVIAR AL SOPORTE</button>
+      </div>
+
+      <!-- TAB 4: POLÍTICAS, PRIVACIDAD Y CUENTA -->
+      <div class="stab-pane" id="stab-pane-account">
+        <div class="account-profile-card">
+          <div class="account-profile-left">
+            <div class="account-avatar">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </div>
+            <div style="min-width:0">
+              <div class="account-email-val" id="settings-user-email">Cuenta activa</div>
+              <div class="account-role-sub">Sesión verificada en Vektron Studio</div>
+            </div>
+          </div>
+          <div class="plan-card-tag" id="settings-user-plan">ACTIVO</div>
+        </div>
+
+        <div class="policy-card">
+          <div class="policy-item">
+            <div class="policy-dot">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <div>
+              <div class="policy-head">Privacidad y Seguridad</div>
+              <div class="policy-desc">Tus credenciales viajan cifradas y tus proyectos permanecen protegidos localmente en tu equipo.</div>
+            </div>
+          </div>
+          <div class="policy-item">
+            <div class="policy-dot">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div>
+              <div class="policy-head">Licencia Personal</div>
+              <div class="policy-desc">Cada membresía Plan Ultra es de uso exclusivo en tu dispositivo autorizado para garantizar estabilidad.</div>
+            </div>
+          </div>
+          <div class="policy-item">
+            <div class="policy-dot">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </div>
+            <div>
+              <div class="policy-head">Renovación Automática</div>
+              <div class="policy-desc">El porcentaje de tu cuota Ultra se restablece al 100% automáticamente cada 5 horas.</div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-danger-logout" onclick="triggerLogout()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+          <span>CERRAR SESIÓN</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox Modal -->
+<div id="preview-modal" onclick="closePreview()">
+  <img id="preview-modal-img" src="" alt="Preview">
+  <div class="preview-modal-caption" id="preview-modal-caption"></div>
+</div>
+
+<script src="three.min.js"></script>
+<script src="gsap.min.js"></script>
+<script>
+// ============================================================================
+// 1. STATE, PREFERENCES & NATIVE ANDROID BRIDGE
+// ============================================================================
+const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/KxtWPvKgjxe31uScO96OpT?s=sw&p=a&mlu=4&iam=2";
+
+let appState = {
+  loggedIn: false,
+  email: "",
+  planCode: "none",
+  badgeText: "ACTIVO",
+  badgeTextColor: "#38bdf8",
+  badgeBgColor: "#111722",
+  canLaunchAntigravity: false,
+  blockedButtonText: "PLAN REQUERIDO",
+  workspaceRunning: false,
+  pct: 0,
+  quotaSubtext: "Sincronizando..."
+};
+
+let isRegisterMode = false;
+let splashCompleted = false;
+let currentScreen = "splash";
+
+let nightModeEnabled = localStorage.getItem("vk_night_mode") !== "0";
+let soundEnabled = localStorage.getItem("vk_sound") !== "0";
+
+function applyPreferencesUI() {
+  document.body.classList.toggle("light-mode", !nightModeEnabled);
+  const tn = document.getElementById("toggle-night");
+  if (tn) tn.classList.toggle("on", nightModeEnabled);
+  const ts = document.getElementById("toggle-sound");
+  if (ts) ts.classList.toggle("on", soundEnabled);
+}
+applyPreferencesUI();
+
+function toggleNightMode() {
+  nightModeEnabled = !nightModeEnabled;
+  localStorage.setItem("vk_night_mode", nightModeEnabled ? "1" : "0");
+  applyPreferencesUI();
+  playSfx("switch");
+}
+
+function toggleSoundPref() {
+  soundEnabled = !soundEnabled;
+  localStorage.setItem("vk_sound", soundEnabled ? "1" : "0");
+  applyPreferencesUI();
+  if (soundEnabled) playSfx("switch");
+}
+
+function playSfx(type) {
+  if (!soundEnabled) return;
+  try {
+    if (window.VektronBridge && window.VektronBridge.playSound) {
+      window.VektronBridge.playSound(type);
+    }
+  } catch (e) {}
+}
+
+function scrollToPoster(idx) {
+  playSfx("switch");
+  const scroller = document.getElementById("gallery-scroll");
+  if (!scroller) return;
+  const cards = scroller.querySelectorAll(".gallery-card");
+  if (cards[idx]) {
+    cards[idx].scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }
+  document.querySelectorAll(".gallery-dot").forEach((d, i) => {
+    d.classList.toggle("active", i === idx);
+  });
+}
+
+(function initGalleryScrollObserver() {
+  const scroller = document.getElementById("gallery-scroll");
+  if (!scroller) return;
+  scroller.addEventListener("scroll", () => {
+    const cards = scroller.querySelectorAll(".gallery-card");
+    if (!cards.length) return;
+    const scrollCenter = scroller.scrollLeft + scroller.clientWidth * 0.5;
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    cards.forEach((c, i) => {
+      const cardCenter = c.offsetLeft + c.offsetWidth * 0.5;
+      const dist = Math.abs(cardCenter - scrollCenter);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIdx = i;
+      }
+    });
+    document.querySelectorAll(".gallery-dot").forEach((d, i) => {
+      d.classList.toggle("active", i === bestIdx);
+    });
+  }, { passive: true });
+})();
+
+function openPreview(src, caption) {
+  playSfx("switch");
+  const modal = document.getElementById("preview-modal");
+  document.getElementById("preview-modal-img").src = src;
+  const capEl = document.getElementById("preview-modal-caption");
+  if (capEl) capEl.textContent = caption || "";
+  modal.style.display = "flex";
+}
+
+function closePreview() {
+  document.getElementById("preview-modal").style.display = "none";
+}
+
+function openSettingsModal(defaultTab) {
+  playSfx("switch");
+  if (defaultTab) switchSettingsTab(defaultTab, true);
+  document.getElementById("settings-modal").style.display = "flex";
+}
+
+function closeSettingsModal() {
+  playSfx("switch");
+  document.getElementById("settings-modal").style.display = "none";
+}
+
+function switchSettingsTab(tabId, silent) {
+  if (!silent) playSfx("switch");
+  ["plans", "prefs", "report", "account"].forEach((id) => {
+    const btn = document.getElementById("stab-btn-" + id);
+    const pane = document.getElementById("stab-pane-" + id);
+    if (btn) btn.classList.toggle("active", id === tabId);
+    if (pane) pane.classList.toggle("active", id === tabId);
+  });
+}
+
+function selectReportCategory(chipEl) {
+  playSfx("switch");
+  document.querySelectorAll(".report-chip").forEach((c) => c.classList.remove("active"));
+  chipEl.classList.add("active");
+  document.getElementById("report-category").value = chipEl.getAttribute("data-cat") || "Error técnico";
+}
+
+function openWhatsAppGroup() {
+  playSfx("switch");
+  if (window.VektronBridge && window.VektronBridge.openExternalUrl) {
+    window.VektronBridge.openExternalUrl(WHATSAPP_GROUP_URL);
+  } else {
+    window.open(WHATSAPP_GROUP_URL, "_blank");
+  }
+}
+
+function sendUserReport() {
+  const cat = document.getElementById("report-category").value;
+  const msg = document.getElementById("report-message").value.trim();
+  const box = document.getElementById("report-msg-box");
+  if (!msg || msg.length < 3) {
+    box.textContent = "Escribe un detalle breve antes de enviar.";
+    box.className = "auth-msg error";
+    return;
+  }
+  const btn = document.getElementById("btn-send-report");
+  btn.disabled = true;
+  btn.textContent = "ENVIANDO...";
+  box.className = "auth-msg";
+  box.textContent = "";
+  playSfx("switch");
+
+  if (window.VektronBridge && window.VektronBridge.submitReport) {
+    window.VektronBridge.submitReport(cat, msg);
+  }
+}
+
+window.onReportResult = function(res) {
+  const btn = document.getElementById("btn-send-report");
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = "ENVIAR AL SOPORTE";
+  }
+  const box = document.getElementById("report-msg-box");
+  if (!box || !res) return;
+  box.textContent = res.message || (res.ok ? "Reporte enviado." : "Error al enviar.");
+  box.className = "auth-msg " + (res.ok ? "ok" : "error");
+  if (res.ok) {
+    document.getElementById("report-message").value = "";
+  }
+};
+
+// ============================================================================
+// 2. THREE.JS WEBGL2 SCENE:
+//    - PRECISION NON-OVERLAPPING 3D VEKTRON "V" (ZERO Z-FIGHTING)
+//    - VIVID HIGH-SATURATION GOOGLE ANTIGRAVITY 3D EMBLEM (ZERO MILKY WASH)
+// ============================================================================
+const canvas = document.getElementById("webgl-canvas");
+const renderer = new THREE.WebGLRenderer({
+  canvas,
+  antialias: true,
+  alpha: true,
+  powerPreference: "high-performance"
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 0, 9.2);
+
+// Studio Lighting
+const ambientLight = new THREE.AmbientLight(0xdbeafe, 0.75);
+scene.add(ambientLight);
+
+const keyLight = new THREE.DirectionalLight(0xffffff, 2.0);
+keyLight.position.set(4, 6, 7);
+scene.add(keyLight);
+
+const rimLight1 = new THREE.PointLight(0x3b82f6, 3.0, 22);
+rimLight1.position.set(-5, 3, 4);
+scene.add(rimLight1);
+
+const rimLight2 = new THREE.PointLight(0x10b981, 2.0, 20);
+rimLight2.position.set(5, -3, 3);
+scene.add(rimLight2);
+
+const rootGroup = new THREE.Group();
+scene.add(rootGroup);
+
+// 2A. PRECISION NON-OVERLAPPING 3D VEKTRON "V" EMBLEM (Boot & Auth)
+const vektronGroup = new THREE.Group();
+rootGroup.add(vektronGroup);
+
+const extrudeOpts = {
+  depth: 0.34,
+  bevelEnabled: true,
+  bevelSegments: 6,
+  steps: 1,
+  bevelSize: 0.045,
+  bevelThickness: 0.045
+};
+
+const leftShape = new THREE.Shape();
+leftShape.moveTo(-1.36, 1.32);
+leftShape.lineTo(-0.58, 1.32);
+leftShape.lineTo(-0.10, 0.37);
+leftShape.lineTo(-0.49, -0.40);
+leftShape.closePath();
+
+const leftGeo = new THREE.ExtrudeGeometry(leftShape, extrudeOpts);
+const leftMat = new THREE.MeshStandardMaterial({
+  color: 0xf8fafc,
+  metalness: 0.45,
+  roughness: 0.18,
+  emissive: 0x1e293b,
+  emissiveIntensity: 0.22
+});
+const leftBlade = new THREE.Mesh(leftGeo, leftMat);
+
+const rightShape = new THREE.Shape();
+rightShape.moveTo(0.58, 1.32);
+rightShape.lineTo(1.36, 1.32);
+rightShape.lineTo(0.0, -1.36);
+rightShape.lineTo(-0.39, -0.60);
+rightShape.closePath();
+
+const rightGeo = new THREE.ExtrudeGeometry(rightShape, extrudeOpts);
+const rightMat = new THREE.MeshStandardMaterial({
+  color: 0x3b82f6,
+  metalness: 0.4,
+  roughness: 0.18,
+  emissive: 0x1d4ed8,
+  emissiveIntensity: 0.42
+});
+const rightBlade = new THREE.Mesh(rightGeo, rightMat);
+
+const vkPivot = new THREE.Group();
+leftGeo.computeBoundingBox();
+rightGeo.computeBoundingBox();
+const combinedBox = leftGeo.boundingBox.clone().union(rightGeo.boundingBox);
+const vkCenter = new THREE.Vector3();
+combinedBox.getCenter(vkCenter);
+leftBlade.position.sub(vkCenter);
+rightBlade.position.sub(vkCenter);
+vkPivot.add(leftBlade);
+vkPivot.add(rightBlade);
+vektronGroup.add(vkPivot);
+
+// 2B. VIVID HIGH-SATURATION GOOGLE ANTIGRAVITY 3D EMBLEM (Lobby)
+const agGroup = new THREE.Group();
+agGroup.visible = false;
+rootGroup.add(agGroup);
+
+function createOfficialAntigravityTexture() {
+  const c = document.createElement("canvas");
+  c.width = 1024;
+  c.height = 1024;
+  const ctx = c.getContext("2d");
+
+  // Rich electric cobalt base (#1a6dff)
+  ctx.fillStyle = "#1d6bf3";
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  function drawBlob(cx96, cy96, rx96, ry96, rotDeg, color, innerStop, blurPx) {
+    const s = 1024 / 96;
+    ctx.save();
+    ctx.filter = `blur(${blurPx * 2}px)`;
+    ctx.translate(cx96 * s, cy96 * s);
+    ctx.rotate((rotDeg * Math.PI) / 180);
+    ctx.scale(rx96 * s, ry96 * s);
+    const g = ctx.createRadialGradient(0, 0, 0.05, 0, 0, 1.0);
+    g.addColorStop(0, color);
+    g.addColorStop(innerStop, color);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0, 0, 1.0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // 1. Vivid Emerald Green on lower-left wing & left leg (#00C853 / #00E676)
+  drawBlob(6, 56, 38, 46, 25, "#00C853", 0.72, 13);
+  drawBlob(18, 40, 32, 38, 42, "#00B95C", 0.70, 12);
+
+  // 2. Rich Golden Yellow at top-left crown (#FFD600 / #FFEA00)
+  drawBlob(31, 13, 30, 25, -18, "#FFC400", 0.72, 11);
+  drawBlob(22, 20, 24, 20, 15, "#FFE432", 0.75, 10);
+
+  // 3. Intense Crimson Red-Orange at top-right crown & upper right arch (#FF2E29 / #FC413D)
+  drawBlob(66, 15, 36, 27, 32, "#FF2D28", 0.75, 11);
+  drawBlob(77, 34, 30, 28, 62, "#FC413D", 0.70, 12);
+
+  // 4. Deep Vivid Google Blue on center-right & bottom-right wing (#1D6BF3 / #3186FF)
+  drawBlob(78, 82, 42, 40, 15, "#1967E8", 0.78, 12);
+  drawBlob(52, 68, 34, 30, 0, "#2979FF", 0.72, 13);
+  drawBlob(82, 58, 25, 22, 28, "#5C94FF", 0.65, 11);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function buildOfficialAntigravity3D() {
+  const g = new THREE.Group();
+
+  const SCALE = 29.5;
+  const CX = 47.9109;
+  const CY = 48.0;
+  const tx = (x) => (x - CX) / SCALE;
+  const ty = (y) => (CY - y) / SCALE;
+
+  // Exact 6 cubic Bezier segments from Eza path (clip0_6153_71 in web/main.js)
+  const s = new THREE.Shape();
+  s.moveTo(tx(85.9734), ty(89.3438));
+  s.bezierCurveTo(tx(91.2234), ty(93.2812), tx(99.0984), ty(90.6562), tx(91.8796), ty(83.4375));
+  s.bezierCurveTo(tx(70.2234), ty(62.4375), tx(74.8171), ty(4.6875),  tx(47.9109), ty(4.6875));
+  s.bezierCurveTo(tx(21.0046), ty(4.6875),  tx(25.5984), ty(62.4375), tx(3.94213), ty(83.4375));
+  s.bezierCurveTo(tx(-3.93287),ty(91.3125), tx(4.59838), ty(93.2812), tx(9.84838), ty(89.3438));
+  s.bezierCurveTo(tx(30.1921), ty(75.5625), tx(28.8796), ty(51.2812), tx(47.9109), ty(51.2812));
+  s.bezierCurveTo(tx(66.9421), ty(51.2812), tx(65.6296), ty(75.5625), tx(85.9734), ty(89.3438));
+
+  const geo = new THREE.ExtrudeGeometry(s, {
+    depth: 0.34,
+    bevelEnabled: true,
+    bevelSegments: 8,
+    steps: 1,
+    bevelSize: 0.055,
+    bevelThickness: 0.055,
+    curveSegments: 64
+  });
+
+  const posAttr = geo.attributes.position;
+  const uvAttr = geo.attributes.uv;
+  for (let i = 0; i < posAttr.count; i++) {
+    const vx = posAttr.getX(i);
+    const vy = posAttr.getY(i);
+    const svgX = vx * SCALE + CX;
+    const svgY = CY - vy * SCALE;
+    const u = Math.max(0.02, Math.min(0.98, svgX / 96.0));
+    const v = Math.max(0.02, Math.min(0.98, 1.0 - (svgY / 96.0)));
+    uvAttr.setXY(i, u, v);
+  }
+  uvAttr.needsUpdate = true;
+
+  geo.computeBoundingBox();
+  const center = new THREE.Vector3();
+  geo.boundingBox.getCenter(center);
+  geo.translate(-center.x, -center.y, -center.z);
+
+  const agTexture = createOfficialAntigravityTexture();
+
+  // Front & back faces: zero diffuse white wash (color: 0x000000) + toneMapped: false
+  // so the 4 Google colors stay 100% vivid, deep, and saturated without milky glare!
+  const faceMat = new THREE.MeshStandardMaterial({
+    color: 0x000000,
+    emissive: 0xffffff,
+    emissiveMap: agTexture,
+    emissiveIntensity: 1.0,
+    metalness: 0.0,
+    roughness: 0.9,
+    toneMapped: false
+  });
+
+  // 3D Bevel & extruded side walls: glossy metallic edge highlights
+  const sideMat = new THREE.MeshStandardMaterial({
+    color: 0x060911,
+    emissive: 0xffffff,
+    emissiveMap: agTexture,
+    emissiveIntensity: 0.62,
+    metalness: 0.55,
+    roughness: 0.20,
+    toneMapped: false
+  });
+
+  const mesh = new THREE.Mesh(geo, [faceMat, sideMat]);
+  g.add(mesh);
+
+  return g;
+}
+
+const agEmblem = buildOfficialAntigravity3D();
+agGroup.add(agEmblem);
+
+// ============================================================================
+// 3. GSAP 3D BOOT ANIMATION & RESPONSIVE STAGE POSITIONING
+// ============================================================================
+function runBootAnimation() {
+  leftBlade.position.x -= 3.6;
+  leftBlade.position.y += 2.0;
+  leftBlade.position.z -= 3.5;
+  leftBlade.rotation.set(1.4, -1.1, 0.7);
+
+  rightBlade.position.x += 3.6;
+  rightBlade.position.y -= 2.0;
+  rightBlade.position.z -= 3.5;
+  rightBlade.rotation.set(-1.3, 1.2, -0.6);
+
+  const tl = gsap.timeline({
+    onStart: () => {
+      playSfx("boot");
+    },
+    onComplete: () => {
+      splashCompleted = true;
+      transitionAfterSplash();
+    }
+  });
+
+  tl.to("#splash-bar", { width: "100%", duration: 2.0, ease: "power2.inOut" }, 0);
+
+  tl.to(leftBlade.position, {
+    x: -vkCenter.x,
+    y: -vkCenter.y,
+    z: -vkCenter.z,
+    duration: 1.2,
+    ease: "expo.out"
+  }, 0.1);
+  tl.to(leftBlade.rotation, { x: 0, y: 0, z: 0, duration: 1.2, ease: "expo.out" }, 0.1);
+
+  tl.to(rightBlade.position, {
+    x: -vkCenter.x,
+    y: -vkCenter.y,
+    z: -vkCenter.z,
+    duration: 1.25,
+    ease: "expo.out"
+  }, 0.16);
+  tl.to(rightBlade.rotation, { x: 0, y: 0, z: 0, duration: 1.25, ease: "expo.out" }, 0.16);
+
+  tl.fromTo(vkPivot.rotation, { y: -0.5 }, { y: 0.18, duration: 1.35, ease: "power3.out" }, 0.7);
+  tl.to("#splash-brand", { opacity: 1, y: 0, duration: 0.65, ease: "power3.out" }, 0.6);
+  tl.to({}, { duration: 0.35 });
+}
+
+function transitionAfterSplash() {
+  const splashEl = document.getElementById("splash-screen");
+  gsap.to(splashEl, {
+    opacity: 0,
+    duration: 0.4,
+    onComplete: () => {
+      splashEl.style.display = "none";
+    }
+  });
+
+  if (appState.loggedIn) {
+    showLobbyScreen();
+  } else {
+    showAuthScreen();
+  }
+}
+
+function get3DStageTarget(screenName) {
+  const w = window.innerWidth || 1;
+  const h = window.innerHeight || 1;
+  const aspect = w / h;
+  const isLandscape = w > h;
+  const visH = 7.064;
+  const visW = visH * aspect;
+
+  if (screenName === "auth") {
+    if (isLandscape) {
+      const leftX = -Math.min(Math.max(visW * 0.24, 1.55), 2.75);
+      return {
+        x: leftX,
+        y: 0.05,
+        scale: h < 520 ? 0.72 : 0.84
+      };
+    } else {
+      const authCard = document.querySelector(".auth-card");
+      if (authCard) {
+        const cRect = authCard.getBoundingClientRect();
+        if (cRect.top > 80) {
+          const cy = Math.max(120, cRect.top * 0.55);
+          const worldY = (0.5 - (cy / h)) * visH;
+          return {
+            x: 0,
+            y: worldY,
+            scale: isRegisterMode ? 0.68 : 0.76
+          };
+        }
+      }
+      return {
+        x: 0,
+        y: isRegisterMode ? 1.85 : 1.65,
+        scale: isRegisterMode ? 0.68 : 0.76
+      };
+    }
+  }
+
+  // lobby: Lock 3D emblem directly to the center of #stage-touch-zone
+  const zoneEl = document.getElementById("stage-touch-zone");
+  const glowEl = document.getElementById("ag-stage-glow");
+  if (zoneEl) {
+    const rect = zoneEl.getBoundingClientRect();
+    if (rect.width > 20 && rect.height > 20) {
+      const cx = rect.left + rect.width * 0.5;
+      const cy = rect.top + rect.height * (isLandscape ? 0.48 : 0.50);
+      const worldX = ((cx / w) - 0.5) * visW;
+      const worldY = (0.5 - (cy / h)) * visH;
+      const desiredPx = Math.min(rect.height * 0.68, rect.width * 0.48);
+      const rawScale = desiredPx / (0.4063 * h);
+      const clampedScale = Math.max(0.38, Math.min(0.68, rawScale));
+
+      if (glowEl) {
+        const glowSize = Math.round(Math.max(180, Math.min(290, desiredPx * 1.95)));
+        glowEl.style.left = Math.round(cx) + "px";
+        glowEl.style.top = Math.round(cy) + "px";
+        glowEl.style.width = glowSize + "px";
+        glowEl.style.height = glowSize + "px";
+      }
+
+      return {
+        x: worldX,
+        y: worldY,
+        scale: clampedScale
+      };
+    }
+  }
+
+  // Fallback coordinates if DOM rect isn't measured yet
+  if (isLandscape) {
+    const leftX = -Math.min(Math.max(visW * 0.28, 1.65), 2.85);
+    return {
+      x: leftX,
+      y: 0.72,
+      scale: h < 520 ? 0.48 : 0.56
+    };
+  } else {
+    return {
+      x: 0,
+      y: 1.82,
+      scale: 0.52
+    };
+  }
+}
+
+function sync3DStageLayout(animate = true) {
+  if (!splashCompleted) return;
+  if (currentScreen === "auth") {
+    const t = get3DStageTarget("auth");
+    if (animate) {
+      gsap.to(vektronGroup.position, { x: t.x, y: t.y, z: 0, duration: 0.65, ease: "expo.out" });
+      gsap.to(vektronGroup.scale, { x: t.scale, y: t.scale, z: t.scale, duration: 0.65, ease: "expo.out" });
+    } else {
+      vektronGroup.position.set(t.x, t.y, 0);
+      vektronGroup.scale.set(t.scale, t.scale, t.scale);
+    }
+  } else if (currentScreen === "lobby") {
+    const t = get3DStageTarget("lobby");
+    if (animate) {
+      gsap.to(agGroup.position, { x: t.x, y: t.y, z: 0, duration: 0.65, ease: "expo.out" });
+      gsap.to(agGroup.scale, { x: t.scale, y: t.scale, z: t.scale, duration: 0.65, ease: "expo.out" });
+    } else {
+      agGroup.position.set(t.x, t.y, 0);
+      agGroup.scale.set(t.scale, t.scale, t.scale);
+    }
+  }
+}
+
+function showAuthScreen() {
+  if (currentScreen === "auth") return;
+  currentScreen = "auth";
+
+  closeSettingsModal();
+  const lobbyEl = document.getElementById("lobby-screen");
+  const authEl = document.getElementById("auth-screen");
+  document.getElementById("ag-stage-glow").style.opacity = "0";
+
+  lobbyEl.style.display = "none";
+  authEl.style.display = "flex";
+
+  agGroup.visible = false;
+  vektronGroup.visible = true;
+
+  requestAnimationFrame(() => {
+    const t = get3DStageTarget("auth");
+    gsap.to(authEl, { opacity: 1, duration: 0.45, ease: "power2.out" });
+    gsap.to(vektronGroup.position, { x: t.x, y: t.y, z: 0, duration: 0.85, ease: "expo.out" });
+    gsap.to(vektronGroup.scale, { x: t.scale, y: t.scale, z: t.scale, duration: 0.85, ease: "expo.out" });
+  });
+}
+
+function showLobbyScreen() {
+  if (currentScreen === "lobby") return;
+  currentScreen = "lobby";
+
+  const authEl = document.getElementById("auth-screen");
+  const lobbyEl = document.getElementById("lobby-screen");
+  document.getElementById("ag-stage-glow").style.opacity = "1";
+
+  authEl.style.display = "none";
+  lobbyEl.style.display = "flex";
+
+  requestAnimationFrame(() => {
+    const t = get3DStageTarget("lobby");
+    vektronGroup.visible = false;
+    agGroup.visible = true;
+    agGroup.position.set(t.x, t.y, 0);
+    agGroup.scale.set(0.01, 0.01, 0.01);
+
+    gsap.to(lobbyEl, { opacity: 1, duration: 0.45, ease: "power2.out" });
+    gsap.to(agGroup.scale, { x: t.scale, y: t.scale, z: t.scale, duration: 0.8, ease: "back.out(1.5)" });
+    gsap.fromTo(agGroup.rotation, { y: -0.75 }, { y: 0.0, duration: 0.95, ease: "expo.out" });
+  });
+}
+
+// ============================================================================
+// 4. INTERACTIVE 3D DRAG ROTATION IN LOBBY
+// ============================================================================
+let isDragging3D = false;
+let prevTouchX = 0;
+let prevTouchY = 0;
+let dragOffsetY = 0;
+let dragOffsetX = 0;
+
+const touchZone = document.getElementById("stage-touch-zone");
+touchZone.addEventListener("pointerdown", (e) => {
+  isDragging3D = true;
+  prevTouchX = e.clientX;
+  prevTouchY = e.clientY;
+});
+
+window.addEventListener("pointermove", (e) => {
+  if (!isDragging3D) return;
+  const dx = e.clientX - prevTouchX;
+  const dy = e.clientY - prevTouchY;
+  prevTouchX = e.clientX;
+  prevTouchY = e.clientY;
+
+  dragOffsetY = Math.max(-1.15, Math.min(1.15, dragOffsetY + dx * 0.012));
+  dragOffsetX = Math.max(-0.45, Math.min(0.45, dragOffsetX + dy * 0.008));
+});
+
+window.addEventListener("pointerup", () => {
+  isDragging3D = false;
+});
+
+// ============================================================================
+// 5. AUTH & LAUNCH INTERACTIONS
+// ============================================================================
+function setAuthMode(registerMode) {
+  isRegisterMode = registerMode;
+  playSfx("switch");
+  document.getElementById("tab-login").classList.toggle("active", !registerMode);
+  document.getElementById("tab-register").classList.toggle("active", registerMode);
+  document.getElementById("btn-auth-submit").textContent = registerMode ? "CREAR CUENTA" : "CONTINUAR";
+  document.getElementById("auth-subtitle").textContent = registerMode
+    ? "Crea tu cuenta en este dispositivo"
+    : "Accede a tu cuenta";
+
+  const confirmGroup = document.getElementById("group-pass-confirm");
+  const confirmInput = document.getElementById("auth-pass-confirm");
+  const footerEl = document.getElementById("auth-footer");
+  if (confirmGroup) confirmGroup.style.display = registerMode ? "block" : "none";
+  if (confirmInput) confirmInput.value = "";
+  if (footerEl) footerEl.style.display = registerMode ? "none" : "block";
+
+  hideAuthMessage();
+  sync3DStageLayout(true);
+}
+
+function showAuthMessage(msg, isOk) {
+  const el = document.getElementById("auth-msg");
+  el.textContent = msg;
+  el.className = "auth-msg " + (isOk ? "ok" : "error");
+}
+
+function hideAuthMessage() {
+  const el = document.getElementById("auth-msg");
+  el.className = "auth-msg";
+  el.textContent = "";
+}
+
+function submitAuthForm() {
+  const email = document.getElementById("auth-email").value.trim();
+  const pass = document.getElementById("auth-pass").value;
+  if (!email || !email.includes("@")) {
+    showAuthMessage("Ingresa un correo electrónico válido.", false);
+    return;
+  }
+  if (!pass || pass.length < 6) {
+    showAuthMessage("La contraseña debe tener al menos 6 caracteres.", false);
+    return;
+  }
+  if (isRegisterMode) {
+    const passConfirm = document.getElementById("auth-pass-confirm").value;
+    if (pass !== passConfirm) {
+      showAuthMessage("Las contraseñas no coinciden.", false);
+      return;
+    }
+  }
+  const btn = document.getElementById("btn-auth-submit");
+  btn.disabled = true;
+  btn.textContent = "VERIFICANDO...";
+  hideAuthMessage();
+  playSfx("switch");
+
+  if (window.VektronBridge && window.VektronBridge.submitAuth) {
+    window.VektronBridge.submitAuth(email, pass, isRegisterMode);
+  }
+}
+
+function triggerResetPassword() {
+  const email = document.getElementById("auth-email").value.trim();
+  if (!email || !email.includes("@")) {
+    showAuthMessage("Escribe primero tu correo arriba para recuperar tu contraseña.", false);
+    return;
+  }
+  showAuthMessage("Enviando enlace a " + email + "...", true);
+  if (window.VektronBridge && window.VektronBridge.resetPassword) {
+    window.VektronBridge.resetPassword(email);
+  }
+}
+
+function triggerLogout() {
+  playSfx("switch");
+  closeSettingsModal();
+  if (window.VektronBridge && window.VektronBridge.logout) {
+    window.VektronBridge.logout();
+  }
+}
+
+function handleLaunchClick() {
+  if (!appState.canLaunchAntigravity) {
+    playSfx("switch");
+    openSettingsModal("plans");
+    return;
+  }
+
+  playSfx("ignite");
+  gsap.to(agGroup.rotation, { y: agGroup.rotation.y + Math.PI * 2, duration: 0.55, ease: "power3.in" });
+  gsap.to(agGroup.scale, {
+    x: 1.5,
+    y: 1.5,
+    z: 1.5,
+    duration: 0.55,
+    ease: "power3.in",
+    onComplete: () => {
+      if (window.setLobbyPaused) {
+        window.setLobbyPaused(true);
+      }
+      if (window.VektronBridge && window.VektronBridge.launchAntigravity) {
+        window.VektronBridge.launchAntigravity();
+      }
+      setTimeout(() => {
+        const t = get3DStageTarget("lobby");
+        agGroup.scale.set(t.scale, t.scale, t.scale);
+      }, 300);
+    }
+  });
+}
+
+function updateLobbyUI() {
+  const emailTxt = appState.email || "Sin sesión";
+  document.getElementById("user-email").textContent = emailTxt;
+
+  const badgeLbl = document.getElementById("plan-badge-label");
+  const badgeTxt = appState.badgeText || "SIN PLAN";
+  if (badgeLbl) badgeLbl.textContent = badgeTxt;
+
+  const sEmail = document.getElementById("settings-user-email");
+  if (sEmail) sEmail.textContent = emailTxt;
+  const sPlan = document.getElementById("settings-user-plan");
+  if (sPlan) sPlan.textContent = badgeTxt;
+
+  const pCode = (appState.planCode || "").toLowerCase();
+  const isActive = !!appState.canLaunchAntigravity;
+  const isP1 = isActive && pCode === "pro";
+  const isP2 = isActive && (pCode === "pro2x" || pCode === "plus");
+  const isP3 = isActive && (pCode === "pro3x" || pCode === "admin" || !!appState.isAdmin);
+
+  const c1 = document.getElementById("pcard-pro");
+  const c2 = document.getElementById("pcard-pro2x");
+  const c3 = document.getElementById("pcard-pro3x");
+  const t1 = document.getElementById("ptag-pro");
+  const t2 = document.getElementById("ptag-pro2x");
+  const t3 = document.getElementById("ptag-pro3x");
+
+  if (c1) {
+    c1.classList.toggle("highlight", isP1);
+    c1.classList.toggle("current-plan", isP1);
+  }
+  if (c2) {
+    c2.classList.toggle("highlight", isP2);
+    c2.classList.toggle("current-plan", isP2);
+  }
+  if (c3) {
+    c3.classList.toggle("highlight", isP3);
+    c3.classList.toggle("current-plan", isP3);
+  }
+  if (t1) t1.textContent = isP1 ? "ACTIVO · 1X" : "CAPACIDAD 1X";
+  if (t2) t2.textContent = isP2 ? "ACTIVO · 2X" : "DOBLE CUOTA · 2X";
+  if (t3) t3.textContent = isP3 ? "ACTIVO · 3X" : "MÁXIMO · 3X";
+
+  const pct = Math.max(0, Math.min(100, appState.pct || 0));
+  document.getElementById("quota-pct").textContent = pct + "%";
+  document.getElementById("quota-bar").style.width = pct + "%";
+  document.getElementById("quota-sub").textContent = appState.quotaSubtext || "";
+
+  const btn = document.getElementById("btn-launch");
+  if (appState.canLaunchAntigravity) {
+    btn.className = "btn-launch";
+    btn.textContent = appState.workspaceRunning
+      ? "VOLVER A ANTIGRAVITY"
+      : "INICIAR ANTIGRAVITY";
+  } else {
+    btn.className = "btn-launch unlock-cta";
+    btn.textContent = appState.blockedButtonText || "DESBLOQUEAR ACCESO · VER PLANES";
+  }
+}
+
+window.updateFromAndroid = function(payload) {
+  try {
+    const data = typeof payload === "string" ? JSON.parse(payload) : payload;
+    appState = Object.assign(appState, data);
+
+    const btn = document.getElementById("btn-auth-submit");
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = isRegisterMode ? "CREAR CUENTA" : "CONTINUAR";
+    }
+
+    if (data.authError) {
+      showAuthMessage(data.authError, !!data.authOk);
+    }
+
+    updateLobbyUI();
+
+    if (splashCompleted) {
+      if (appState.loggedIn) {
+        showLobbyScreen();
+      } else {
+        showAuthScreen();
+      }
+    }
+  } catch (e) {}
+};
+
+// ============================================================================
+// 6. 60FPS RENDER LOOP (PAUSES AUTOMATICALLY WHEN IN ANTIGRAVITY WORKSPACE)
+// ============================================================================
+const clock = new THREE.Clock();
+let lobbyPaused = false;
+let lobbyRafId = 0;
+
+function animate() {
+  if (lobbyPaused) {
+    lobbyRafId = 0;
+    return;
+  }
+  lobbyRafId = requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+
+  if (vektronGroup.visible && splashCompleted) {
+    vkPivot.rotation.y = Math.sin(t * 0.85) * 0.22;
+    vkPivot.position.y = Math.sin(t * 1.6) * 0.06;
+  }
+
+  if (agGroup.visible) {
+    if (!isDragging3D) {
+      dragOffsetY *= 0.92;
+      dragOffsetX *= 0.92;
+    }
+    const targetY = Math.sin(t * 1.15) * 0.26 + dragOffsetY;
+    const targetX = Math.cos(t * 0.9) * 0.06 + dragOffsetX;
+    agGroup.rotation.y += (targetY - agGroup.rotation.y) * 0.12;
+    agGroup.rotation.x += (targetX - agGroup.rotation.x) * 0.12;
+    agEmblem.position.y = Math.sin(t * 1.9) * 0.06;
+  }
+
+  renderer.render(scene, camera);
+}
+
+window.setLobbyPaused = function(paused) {
+  lobbyPaused = !!paused;
+  if (lobbyPaused) {
+    if (lobbyRafId) {
+      cancelAnimationFrame(lobbyRafId);
+      lobbyRafId = 0;
+    }
+  } else if (!lobbyRafId) {
+    clock.getDelta();
+    lobbyRafId = requestAnimationFrame(animate);
+  }
+};
+
+window.addEventListener("resize", () => {
+  if (lobbyPaused) return;
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  sync3DStageLayout(true);
+});
+
+runBootAnimation();
+animate();
+</script>
+</body>
+</html>

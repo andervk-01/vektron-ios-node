@@ -1,0 +1,12 @@
+{
+  "name": "Vektron Studio Cloud Node",
+  "postCreateCommand": "bash start.sh",
+  "postStartCommand": "bash start.sh",
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": {
+      "label": "Vektron Studio Gateway",
+      "onAutoForward": "silent"
+    }
+  }
+}
