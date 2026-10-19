@@ -203,12 +203,26 @@ function coreBase() {
   return (baseOrigin() || ('https://127.0.0.1:' + p)).replace(/\/$/, '');
 }
 
+function readVkUid() {
+  try {
+    if (global.__VK_UID__) return String(global.__VK_UID__);
+    var qp = new URLSearchParams(global.location.search);
+    if (qp.get('vk_uid')) return qp.get('vk_uid');
+  } catch (e) {}
+  return '';
+}
+
 function ensureCsrf(headers) {
   try {
     if (headers && typeof headers.set === 'function'
-        && typeof headers.has === 'function'
-        && !headers.has('x-codeium-csrf-token')) {
-      headers.set('x-codeium-csrf-token', syncCsrf());
+        && typeof headers.has === 'function') {
+      if (!headers.has('x-codeium-csrf-token')) {
+        headers.set('x-codeium-csrf-token', syncCsrf());
+      }
+      var uid = readVkUid();
+      if (uid && !headers.has('x-vektron-uid')) {
+        headers.set('x-vektron-uid', uid);
+      }
     }
   } catch (e) {}
   return headers;
@@ -220,9 +234,39 @@ function appendCsrfQuery(url) {
       url += (url.indexOf('?') === -1 ? '?' : '&')
           + 'csrf_token=' + encodeURIComponent(syncCsrf());
     }
+    var uid = readVkUid();
+    if (uid && url.indexOf('vk_uid=') === -1) {
+      url += (url.indexOf('?') === -1 ? '?' : '&')
+          + 'vk_uid=' + encodeURIComponent(uid);
+    }
   } catch (e) {}
   return url;
 }
+
+try {
+  if (typeof global.WebSocket === 'function' && !global.__VK_WS_WRAPPED__) {
+    var OrigWS = global.WebSocket;
+    var WrappedWS = function (wsUrl, protocols) {
+      try {
+        var s = String(wsUrl || '');
+        var uid = readVkUid();
+        if (uid && s.indexOf('vk_uid=') === -1) {
+          s += (s.indexOf('?') === -1 ? '?' : '&') + 'vk_uid=' + encodeURIComponent(uid);
+        }
+        return protocols !== undefined ? new OrigWS(s, protocols) : new OrigWS(s);
+      } catch (e) {
+        return protocols !== undefined ? new OrigWS(wsUrl, protocols) : new OrigWS(wsUrl);
+      }
+    };
+    WrappedWS.prototype = OrigWS.prototype;
+    WrappedWS.CONNECTING = OrigWS.CONNECTING;
+    WrappedWS.OPEN = OrigWS.OPEN;
+    WrappedWS.CLOSING = OrigWS.CLOSING;
+    WrappedWS.CLOSED = OrigWS.CLOSED;
+    global.WebSocket = WrappedWS;
+    global.__VK_WS_WRAPPED__ = true;
+  }
+} catch (e) {}
 
 var RPC_MARKERS = ['exa.language_server_pb.', 'exa.host_bridge_pb.', '/exa.'];
 
